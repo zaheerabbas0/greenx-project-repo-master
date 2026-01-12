@@ -2,8 +2,8 @@ services:
   frontend:
     build:
       context: ./greenX-assessment-tool-frontend
-      image: ghcr.io/zaheerabbas0/greenx/frontend:latest
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile      
+    image: ghcr.io/zaheerabbas0/greenx/frontend:latest
     container_name: Greenx_frontend
     ports:
       - "3000:3000"
@@ -18,8 +18,8 @@ services:
     - .env
     build:
       context: ./GreenX_DCS_Assesment_Tool_Backend
-      image: ghcr.io/zaheerabbas0/greenx/backend:latest
       dockerfile: Dockerfile
+    image: ghcr.io/zaheerabbas0/greenx/backend:latest
     container_name: Greenx_backend
     ports:
       - "8000:8000"
