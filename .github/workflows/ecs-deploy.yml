@@ -27,8 +27,8 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t $IMAGE_NAME:${{ github.sha }} .
-        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
+         docker build -t $IMAGE_NAME:${{ github.sha }} GreenX_DCS_Assesment_Tool_Backend
+         docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
 
     - name: Push Docker image to GHCR
       run: |
