@@ -1,0 +1,36 @@
+name: CI - Build & Push Docker Image
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:   # manual trigger bhi allow
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/zaheerabbas0/greenx-project-repo-master
+
+jobs:
+  build:
+    runs-on: ubuntu-devops
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      run: |
+        echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build Docker image
+      run: |
+        docker build -t $IMAGE_NAME:${{ github.sha }} .
+        docker tag $IMAGE_NAME:${{ github.sha }} $IMAGE_NAME:latest
+
+    - name: Push Docker image to GHCR
+      run: |
+        docker push $IMAGE_NAME:${{ github.sha }}
+        docker push $IMAGE_NAME:latest
