@@ -1,16 +1,15 @@
-
-
 services:
   frontend:
     build:
       context: ./greenX-assessment-tool-frontend
+      image: ghcr.io/zaheerabbas0/greenx/frontend:latest
       dockerfile: Dockerfile
     container_name: Greenx_frontend
     ports:
       - "3000:3000"
     volumes:
-      - ./greenX-assessment-tool-frontend:/app  # Ensure correct syntax with a dash (-)
-      - node_modules:/app/node_modules  # This volume stores node_modules
+      - ./greenX-assessment-tool-frontend:/app 
+      - node_modules:/app/node_modules 
     networks:
       - greenx-network
 
@@ -19,6 +18,7 @@ services:
     - .env
     build:
       context: ./GreenX_DCS_Assesment_Tool_Backend
+      image: ghcr.io/zaheerabbas0/greenx/backend:latest
       dockerfile: Dockerfile
     container_name: Greenx_backend
     ports:

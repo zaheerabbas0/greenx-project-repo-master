@@ -35,13 +35,13 @@ jobs:
       run: |
         docker tag ghcr.io/zaheerabbas0/greenx/frontend:latest ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
         docker tag ghcr.io/zaheerabbas0/greenx/backend:latest  ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
-        docker tag ghcr.io/zaheerabbas0/greenx/worker:latest   ghcr.io/zaheerabbas0/greenx/worker:${IMAGE_TAG}
+        docker tag ghcr.io/zaheerabbas0/greenx/mysql:latest   ghcr.io/zaheerabbas0/greenx/mysql:${IMAGE_TAG}
 
     - name: Push images
       run: |
         docker push ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
-        docker push ghcr.io/zaheerabbas0/greenx/worker:${IMAGE_TAG}
+        docker push ghcr.io/zaheerabbas0/greenx/mysql:${IMAGE_TAG}
 
 #     - name: Configure AWS credentials (OIDC)
 #       uses: aws-actions/configure-aws-credentials@v4
@@ -56,7 +56,7 @@ jobs:
 #           '.containerDefinitions[] |=
 #             (if .name=="frontend" then .image="ghcr.io/zaheerabbas0/greenx/frontend:"+$IMAGE_TAG
 #              elif .name=="backend" then .image="ghcr.io/zaheerabbas0/greenx/backend:"+$IMAGE_TAG
-#              elif .name=="worker" then .image="ghcr.io/zaheerabbas0/greenx/worker:"+$IMAGE_TAG
+#              elif .name=="mysql" then .image="ghcr.io/zaheerabbas0/greenx/mysql:"+$IMAGE_TAG
 #              else . end)' taskdef.json)
 
 #         echo "$TASK_DEF" > new-taskdef.json
