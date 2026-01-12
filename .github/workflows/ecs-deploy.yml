@@ -1,0 +1,73 @@
+name: CI/CD → ECS (OIDC)
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  id-token: write   
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: devops-plan 
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      run: |
+        echo "${{ secrets.GHCR_TOKEN }}" | \
+        docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+
+    - name: Build Docker images
+      run: docker-compose build
+
+    - name: Tag images
+      run: |
+        docker tag ghcr.io/zaheerabbas0/greenx/frontend:latest ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
+        docker tag ghcr.io/zaheerabbas0/greenx/backend:latest  ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
+        docker tag ghcr.io/zaheerabbas0/greenx/worker:latest   ghcr.io/zaheerabbas0/greenx/worker:${IMAGE_TAG}
+
+    - name: Push images
+      run: |
+        docker push ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
+        docker push ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
+        docker push ghcr.io/zaheerabbas0/greenx/worker:${IMAGE_TAG}
+
+#     - name: Configure AWS credentials (OIDC)
+#       uses: aws-actions/configure-aws-credentials@v4
+#       with:
+#         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+#         aws-region: ${{ secrets.AWS_REGION }}
+
+#     - name: Register ECS task definition
+#       run: |
+#         TASK_DEF=$(jq \
+#           --arg IMAGE_TAG "$IMAGE_TAG" \
+#           '.containerDefinitions[] |=
+#             (if .name=="frontend" then .image="ghcr.io/zaheerabbas0/greenx/frontend:"+$IMAGE_TAG
+#              elif .name=="backend" then .image="ghcr.io/zaheerabbas0/greenx/backend:"+$IMAGE_TAG
+#              elif .name=="worker" then .image="ghcr.io/zaheerabbas0/greenx/worker:"+$IMAGE_TAG
+#              else . end)' taskdef.json)
+
+#         echo "$TASK_DEF" > new-taskdef.json
+
+#         aws ecs register-task-definition \
+#           --cli-input-json file://new-taskdef.json
+
+#     - name: Update ECS service
+#       run: |
+#         aws ecs update-service \
+#           --cluster test-ecs-cluster-new \
+#           --service test-task-definition-service \
+#           --force-new-deployment
+# */
