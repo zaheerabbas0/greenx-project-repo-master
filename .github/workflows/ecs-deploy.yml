@@ -28,7 +28,7 @@ jobs:
     - name: Login to GitHub Container Registry
       run: |
         echo "${{ secrets.GHCR_TOKEN }}" | \
-        docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        docker login ghcr.io -u zaheerabbas0 --password-stdin <<< "${{ secrets.GHCR_TOKEN }}"
 
     - name: Build Docker images
       run: docker-compose build
