@@ -38,14 +38,12 @@ jobs:
         docker tag ghcr.io/zaheerabbas0/greenx/frontend:latest ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
         docker tag ghcr.io/zaheerabbas0/greenx/backend:latest  ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
         docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx/mysql:latest
-        docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx/mysql:${IMAGE_TAG}
 
     - name: Push images
       run: |
         docker push ghcr.io/zaheerabbas0/greenx/frontend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx/backend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx/mysql:latest
-        docker push ghcr.io/zaheerabbas0/greenx/mysql:${IMAGE_TAG}
 
     # ---------------- CD ----------------
     - name: Configure AWS credentials (OIDC)
