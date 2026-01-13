@@ -44,6 +44,12 @@ jobs:
 
     - name: Push images
       run: |
+        docker push ghcr.io/zaheerabbas0/greenx-frontend:latest
+        docker push ghcr.io/zaheerabbas0/greenx-backend:latest
+
+        # push commit SHA tags
+        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+        docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
     #    docker push ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
