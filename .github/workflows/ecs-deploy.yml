@@ -37,7 +37,8 @@ jobs:
       run: |
         docker tag ghcr.io/zaheerabbas0/greenx-frontend:latest ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
         docker tag ghcr.io/zaheerabbas0/greenx-backend:latest  ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-
+    - name: Pull mysql image
+      run: docker pull mysql:8.0
         docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
     - name: Push images
