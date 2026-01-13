@@ -27,19 +27,26 @@ jobs:
 
     - name: Login to GitHub Container Registry
       run: |
-        echo "${{ secrets.GHCR_TOKEN }}" | \
-        docker login ghcr.io -u zaheerabbas0 --password-stdin <<< "${{ secrets.GHCR_TOKEN }}"
+         echo "${{ secrets.GHCR_TOKEN }}" | \
+         docker login ghcr.io -u zaheerabbas0 --password-stdin
 
-    - name: Build Docker images
-      run: docker-compose build
+    - name: Build images
+      run: |
+        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:latest ./frontend
+        docker build -t ghcr.io/zaheerabbas0/greenx-backend:latest  ./backend
 
+    # 🐬 MySQL base image
+    - name: Pull mysql
+      run: docker pull mysql:8.0
+
+    # 🏷️ Tag images
     - name: Tag images
       run: |
         docker tag ghcr.io/zaheerabbas0/greenx-frontend:latest ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
         docker tag ghcr.io/zaheerabbas0/greenx-backend:latest  ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-
         docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
+    # 🚀 Push images
     - name: Push images
       run: |
         docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
