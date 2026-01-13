@@ -35,8 +35,9 @@ jobs:
 
     - name: Tag images
       run: |
-        docker tag greenx-project-repo-master_frontend:latest ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
-        docker tag greenx-project-repo-master_backend:latest  ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+        docker tag ghcr.io/zaheerabbas0/greenx-frontend:latest ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+        docker tag ghcr.io/zaheerabbas0/greenx-backend:latest  ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+
         docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
     - name: Push images
