@@ -7,9 +7,6 @@ services:
     container_name: Greenx_frontend
     ports:
       - "80:80"
-    volumes:
-      - ./greenX-assessment-tool-frontend:/app 
-      - node_modules:/app/node_modules 
     networks:
       - greenx-network
 
@@ -23,8 +20,6 @@ services:
     container_name: Greenx_backend
     ports:
       - "8000:8000"
-    volumes:
-      - ./GreenX_DCS_Assesment_Tool_Backend:/app
     networks:
       - greenx-network
     depends_on:
@@ -39,8 +34,6 @@ services:
       MYSQL_DATABASE: all_tables
       MYSQL_USER: greenx_user
       MYSQL_PASSWORD: greenx_pass
-    volumes:
-      - myvolume:/var/lib/mysql
     ports:
       - "3306:3306"
     networks:
@@ -50,8 +43,4 @@ services:
 networks:
   greenx-network:
     driver: bridge
-
-volumes:
-  myvolume:  # Volume for MySQL data persistence
-  node_modules:  # Volume for frontend node_modules
 
