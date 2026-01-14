@@ -68,4 +68,4 @@ jobs:
         target: test-task-definition-service
         tag: ${{ github.sha }}
         rollback: true
-        timeout: 300
+        timeout: 1000
