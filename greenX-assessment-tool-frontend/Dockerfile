@@ -1,10 +1,20 @@
-FROM node:16-alpine
+FROM node:18-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN npm install
 COPY . .
+RUN npm run build
 
-ENV PORT=80
+FROM nginx:alpine
+
+# default config hatao
+RUN rm /etc/nginx/conf.d/default.conf
+
+# apni config copy karo
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# React build copy karo
+COPY --from=builder /app/build /usr/share/nginx/html
+
 EXPOSE 80
-
-CMD ["npm", "start"]
+CMD ["nginx", "-g", "daemon off;"]
