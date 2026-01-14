@@ -31,7 +31,7 @@ jobs:
          docker login ghcr.io -u zaheerabbas0 --password-stdin
 
     - name: Build Docker images
-      run: docker-compose build
+      run: docker compose build
 
     - name: Pull mysql image
       run: docker pull mysql:8.0
