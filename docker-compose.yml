@@ -6,7 +6,7 @@ services:
     image: ghcr.io/zaheerabbas0/greenx-frontend
     container_name: Greenx_frontend
     ports:
-      - "3000:3000"
+      - "80:80"
     volumes:
       - ./greenX-assessment-tool-frontend:/app 
       - node_modules:/app/node_modules 
