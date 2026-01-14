@@ -54,18 +54,18 @@ jobs:
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
         docker push ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
-    # ---------------- CD ----------------
-    # - name: Configure AWS credentials (OIDC)
-    #   uses: aws-actions/configure-aws-credentials@v4
-    #   with:
-    #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-    #     aws-region: ${{ secrets.AWS_REGION }}
+   # ---------------- CD ----------------
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    # - name: Deploy to ECS (frontend + backend + mysql)
-    #   uses: donaldpiret/ecs-deploy@v0.2.0
-    #   with:
-    #     cluster: test-ecs-cluster-new
-    #     target: test-task-definition-service
-    #     tag: ${{ github.sha }}
-    #     rollback: true
-    #     timeout: 300
+    - name: Deploy to ECS (frontend + backend + mysql)
+      uses: donaldpiret/ecs-deploy@v0.2.0
+      with:
+        cluster: test-ecs-cluster-new
+        target: test-task-definition-service
+        tag: ${{ github.sha }}
+        rollback: true
+        timeout: 300
