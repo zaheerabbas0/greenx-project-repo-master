@@ -65,7 +65,7 @@ jobs:
       uses: donaldpiret/ecs-deploy@v0.2.0
       with:
         cluster: test-ecs-cluster-new
-        target: new-serice-ecs
+        target: new-service-ecs
         tag: ${{ github.sha }}
         rollback: true
         timeout: 1000
