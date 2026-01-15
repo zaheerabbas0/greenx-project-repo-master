@@ -34,6 +34,7 @@ else
   echo " Alembic already initialized"
 fi
 
+
 echo " Running migrations"
 alembic upgrade head
 
