@@ -55,10 +55,16 @@ jobs:
         docker push ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
    # ---------------- CD ----------------
-    - name: Run database migrations
+    - name: Run database migrations safely
       run: |
-        docker compose run --rm backend alembic upgrade head
-        
+        docker compose run --rm backend sh -c "
+        if [ \"\$(alembic current 2>/dev/null | wc -l)\" -eq 0 ]; then
+          alembic stamp head;
+        fi
+        alembic upgrade head
+        "
+
+
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
