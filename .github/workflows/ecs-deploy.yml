@@ -2,9 +2,7 @@ name: CI/CD → ECS (OIDC)
 
 on:
   push:
-    branches:
-      - develop
-  workflow_dispatch:
+    branches: [develop]
 
 permissions:
   id-token: write
@@ -14,54 +12,36 @@ permissions:
 jobs:
   deploy:
     runs-on: self-hosted
-    environment: devops-plan
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
       IMAGE_TAG: ${{ github.sha }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
-    # ---------------- CI ----------------
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-    - name: Login to GitHub Container Registry
+    - name: Login to GHCR
       run: |
-         echo "${{ secrets.GHCR_TOKEN }}" | \
-         docker login ghcr.io -u zaheerabbas0 --password-stdin
+        echo "${{ secrets.GHCR_TOKEN }}" | \
+        docker login ghcr.io -u zaheerabbas0 --password-stdin
 
-    - name: Build Docker images
-      run: docker compose build
-
-    - name: Pull mysql image
-      run: docker pull mysql:8.0
-
-    - name: Tag images
+    - name: Build & Push Backend
       run: |
-        docker tag ghcr.io/zaheerabbas0/greenx-frontend:latest ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
-        docker tag ghcr.io/zaheerabbas0/greenx-backend:latest  ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-        docker tag mysql:8.0 ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
-
-    - name: Push images
-      run: |
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:latest
-        docker push ghcr.io/zaheerabbas0/greenx-backend:latest
-
-        # push commit SHA tags
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
-        docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-        docker push ghcr.io/zaheerabbas0/greenx-mysql:${IMAGE_TAG}
 
-   # ---------------- CD ----------------
+    - name: Build & Push Frontend
+      run: |
+        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
+        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to ECS (frontend + backend + mysql)
+    - name: Deploy to ECS
       uses: donaldpiret/ecs-deploy@v0.2.0
       with:
         cluster: test-ecs-cluster-new
