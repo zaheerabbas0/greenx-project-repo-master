@@ -2,7 +2,9 @@ name: CI/CD → ECS (OIDC)
 
 on:
   push:
-    branches: [develop]
+    branches:
+      - develop
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,36 +14,40 @@ permissions:
 jobs:
   deploy:
     runs-on: self-hosted
+    environment: devops-plan
 
     env:
-      IMAGE_TAG: ${{ github.sha }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
-    - uses: actions/checkout@v4
+    # ---------------- CI ----------------
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Login to GHCR
+    - name: Login to GitHub Container Registry
       run: |
-        echo "${{ secrets.GHCR_TOKEN }}" | \
-        docker login ghcr.io -u zaheerabbas0 --password-stdin
-
+         echo "${{ secrets.GHCR_TOKEN }}" | \
+         docker login ghcr.io -u zaheerabbas0 --password-stdin
+   
     - name: Build & Push Backend
       run: |
-        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
-        docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+          docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
+          docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
     - name: Build & Push Frontend
       run: |
-        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+          docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
+          docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
 
+   # ---------------- CD ----------------
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to ECS
+    - name: Deploy to ECS (frontend + backend + mysql)
       uses: donaldpiret/ecs-deploy@v0.2.0
       with:
         cluster: test-ecs-cluster-new
