@@ -58,11 +58,16 @@ jobs:
     - name: Run database migrations safely
       run: |
         docker compose run --rm backend sh -c "
-        if [ \"\$(alembic current 2>/dev/null | wc -l)\" -eq 0 ]; then
-          alembic stamp head;
-        fi
-        alembic upgrade head
-        "
+          set -e
+          COUNT=\$(mysql -h\"\$DB_HOST\" -u\"\$DB_USER\" -p\"\$DB_PASSWORD\" \"\$DB_NAME\" \
+            -N -e \"SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_schema='\$DB_NAME'
+                    AND table_name='alembic_version';\")
+          if [ \"\$COUNT\" -eq 0 ]; then
+            alembic stamp head
+          fi
+          alembic upgrade head
+          "
 
 
     - name: Configure AWS credentials (OIDC)
