@@ -7,7 +7,6 @@ until nc -z "$DB_HOST" "$DB_PORT"; do
 done
 
 echo "Running migrations"
-alembic stamp
 alembic upgrade head
 
 echo "Starting backend"
