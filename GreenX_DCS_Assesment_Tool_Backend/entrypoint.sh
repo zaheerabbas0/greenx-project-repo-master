@@ -2,12 +2,9 @@
 set -e
 
 echo "Waiting for MySQL..."
-until nc -z "$DB_HOST" "$DB_PORT"; do
-  sleep 2
+until mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASSWORD" --skip-ssl -e "SELECT 1;" >/dev/null 2>&1; do
+  sleep 1
 done
 
-echo "Running migrations"
-alembic upgrade head
-
-echo "Starting backend"
+echo "Starting backend..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
