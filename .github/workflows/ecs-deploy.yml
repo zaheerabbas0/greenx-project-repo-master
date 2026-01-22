@@ -30,10 +30,20 @@ jobs:
          echo "${{ secrets.GHCR_TOKEN }}" | \
          docker login ghcr.io -u zaheerabbas0 --password-stdin
    
-    - name: Build & Push Backend
+    - name: Build  Backend
       run: |
           docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
-          docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+
+    - name: Trivy Scan Backend Image
+      run: |
+        trivy image \
+          --severity CRITICAL \
+          --exit-code 1 \
+          ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+
+    - name: push bakcend images
+      run: | 
+        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
     - name: Build & Push Frontend
       run: |
