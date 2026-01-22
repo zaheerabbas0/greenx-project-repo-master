@@ -25,7 +25,7 @@ jobs:
   ci:
     name: CI - Build 
     runs-on: self-hosted
-    environment: devops-plan
+    environment: devops-plan 
 
     if: github.event_name == 'pull_request'
 
@@ -71,7 +71,7 @@ jobs:
     name: CD - Build, Push & Deploy to ECS
     runs-on: self-hosted
     environment: devops-plan
-    
+
     if: github.event_name == 'push'
 
     env:
