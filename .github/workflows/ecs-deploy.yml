@@ -25,6 +25,7 @@ jobs:
   ci:
     name: CI - Build 
     runs-on: self-hosted
+    environment: devops-plan
 
     if: github.event_name == 'pull_request'
 
@@ -37,7 +38,8 @@ jobs:
 
     - name: Login to GitHub Container Registry
       run: |
-        echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u zaheerabbas0 --password-stdin
+         echo "${{ secrets.GHCR_TOKEN }}" | \
+         docker login ghcr.io -u zaheerabbas0 --password-stdin
 
     - name: Build Backend Image
       run: |
@@ -68,7 +70,8 @@ jobs:
   cd:
     name: CD - Build, Push & Deploy to ECS
     runs-on: self-hosted
-
+    environment: devops-plan
+    
     if: github.event_name == 'push'
 
     env:
