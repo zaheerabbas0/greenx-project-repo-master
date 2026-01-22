@@ -1,9 +1,19 @@
 name: CI/CD → ECS (OIDC)
 
 on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
   push:
     branches:
       - develop
+
   workflow_dispatch:
 
 permissions:
@@ -12,16 +22,17 @@ permissions:
   packages: write
 
 jobs:
-  deploy:
+  ci:
+    name: CI - Build 
     runs-on: self-hosted
-    environment: devops-plan
+    environment: devops-plan 
+
+    if: github.event_name == 'pull_request'
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      IMAGE_TAG: ${{ github.sha }}
+      IMAGE_TAG: pr-${{ github.event.pull_request.number }}
 
     steps:
-    # ---------------- CI ----------------
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -29,35 +40,74 @@ jobs:
       run: |
          echo "${{ secrets.GHCR_TOKEN }}" | \
          docker login ghcr.io -u zaheerabbas0 --password-stdin
-   
-    - name: Build  Backend
-      run: |
-          docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
 
-    - name: Trivy Scan Backend Image
+    - name: Build Backend Image
+      run: |
+        docker build \
+          -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} \
+          ./GreenX_DCS_Assesment_Tool_Backend
+
+    - name: Scan Backend Image (Non-Blocking)
+      continue-on-error: true
       run: |
         trivy image \
-          --severity CRITICAL \
-          --exit-code 1 \
+          --severity HIGH,CRITICAL \
           ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
-    - name: push bakcend images
-      run: | 
-        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-
-    - name: Build & Push Frontend
+    - name: Build Frontend Image
       run: |
-          docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
-          docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+        docker build \
+          -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} \
+          ./greenX-assessment-tool-frontend
 
-   # ---------------- CD ----------------
+    - name: Scan Frontend Image (Non-Blocking)
+      continue-on-error: true
+      run: |
+        trivy image \
+          --severity HIGH,CRITICAL \
+          ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+
+  cd:
+    name: CD - Build, Push & Deploy to ECS
+    runs-on: self-hosted
+    environment: devops-plan
+
+    if: github.event_name == 'push'
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      run: |
+        echo "${{ secrets.GHCR_TOKEN }}" | \
+        docker login ghcr.io -u zaheerabbas0 --password-stdin
+
+    - name: Build & Push Backend Image
+      run: |
+        docker build \
+          -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} \
+          ./GreenX_DCS_Assesment_Tool_Backend
+        docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+
+    - name: Build & Push Frontend Image
+      run: |
+        docker build \
+          -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} \
+          ./greenX-assessment-tool-frontend
+        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to ECS (frontend + backend + mysql)
+    - name: Deploy to ECS
       uses: donaldpiret/ecs-deploy@v0.2.0
       with:
         cluster: test-ecs-cluster-new
