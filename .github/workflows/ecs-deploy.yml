@@ -19,9 +19,9 @@ env:
   CLUSTER: test-ecs-cluster-new
   ALB_DNS: test-devops-alb-1759750993.us-east-1.elb.amazonaws.com
   CONTAINER_PORT: 8000
-  TASK_FAMILY: greenx-backend
+  TASK_FAMILY: greenx-backend-task
   CONTAINER_NAME: backend
-  
+
 jobs:
   pr-deploy:
     name: PR → Build & Deploy Environment
@@ -56,7 +56,7 @@ jobs:
     - name: Fetch base task definition
       run: |
         aws ecs describe-task-definition \
-          --task-definition ${TASK_FAMILY} \
+          --task-definition ${TASK_FAMILY}:latest \
           --query taskDefinition > taskdef.json
 
     - name: Render PR task definition
