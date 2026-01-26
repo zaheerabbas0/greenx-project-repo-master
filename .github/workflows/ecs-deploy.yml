@@ -19,7 +19,7 @@ env:
   CLUSTER: test-ecs-cluster-new
   ALB_DNS: test-devops-alb-1759750993.us-east-1.elb.amazonaws.com
   CONTAINER_PORT: 8000
-  TASK_FAMILY: greenx-backend-task
+  TASK_FAMILY: test-task-definition
   CONTAINER_NAME: backend
 
 jobs:
