@@ -52,17 +52,26 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
-    - name: Get latest task definition ARN
+    - name: Get latest task definition ARN (stable)
+      shell: bash
       run: |
+        echo "Resolving latest task definition for family: ${TASK_FAMILY}"
+
         TASK_DEF_ARN=$(aws ecs list-task-definitions \
-          --family-prefix ${TASK_FAMILY} \
+          --family-prefix "${TASK_FAMILY}" \
           --status ACTIVE \
           --sort DESC \
-          --max-items 1 \
           --query 'taskDefinitionArns[0]' \
           --output text)
 
-        echo "BASE_TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+        if [ -z "$TASK_DEF_ARN" ] || [ "$TASK_DEF_ARN" = "None" ]; then
+          echo "❌ ERROR: Failed to resolve task definition ARN"
+          exit 1
+        fi
+
+        echo "Latest task definition: $TASK_DEF_ARN"
+        echo "BASE_TASK_DEF_ARN=$TASK_DEF_ARN" >> "$GITHUB_ENV"
+
 
     - name: Fetch base task definition
       run: |
