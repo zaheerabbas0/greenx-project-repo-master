@@ -1,18 +1,12 @@
-name: CI/CD → ECS (OIDC)
+name: CI/CD → ECS EC2 with PR Environments (ALB Path Routing)
 
 on:
   pull_request:
-    branches:
-      - develop
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    branches: [develop]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
 
   push:
-    branches:
-      - develop
+    branches: [develop]
 
   workflow_dispatch:
 
@@ -21,93 +15,151 @@ permissions:
   contents: read
   packages: write
 
-jobs:
-  ci:
-    name: CI - Build 
-    runs-on: self-hosted
-    environment: devops-plan 
+env:
+  CLUSTER: test-ecs-cluster-new
+  ALB_DNS: test-devops-alb-1759750993.us-east-1.elb.amazonaws.com
+  CONTAINER_PORT: 8000
 
-    if: github.event_name == 'pull_request'
+jobs:
+  pr-deploy:
+    name: PR → Build & Deploy Environment (EC2)
+    runs-on: self-hosted
+    environment: devops-plan
+
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
 
     env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
       IMAGE_TAG: pr-${{ github.event.pull_request.number }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Login to GitHub Container Registry
+    - name: Login to GHCR
       run: |
-         echo "${{ secrets.GHCR_TOKEN }}" | \
-         docker login ghcr.io -u zaheerabbas0 --password-stdin
+        echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u zaheerabbas0 --password-stdin
 
-    - name: Build Backend Image
+    - name: Build & Push Backend Image
       run: |
-        docker build \
-          -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} \
-          ./GreenX_DCS_Assesment_Tool_Backend
+        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
+        docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
-    - name: Scan Backend Image (Non-Blocking)
-      continue-on-error: true
+    - name: Build & Push Frontend Image
       run: |
-        trivy image \
-          --severity HIGH,CRITICAL \
-          ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
+        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
+        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
 
-    - name: Build Frontend Image
+    - name: Configure AWS (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Create Target Group (INSTANCE)
       run: |
-        docker build \
-          -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} \
-          ./greenX-assessment-tool-frontend
+        TG_ARN=$(aws elbv2 create-target-group \
+          --name tg-pr-${PR_NUMBER} \
+          --protocol HTTP \
+          --port ${CONTAINER_PORT} \
+          --vpc-id ${{ secrets.VPC_ID }} \
+          --target-type instance \
+          --health-check-path /health \
+          --query 'TargetGroups[0].TargetGroupArn' \
+          --output text)
+        echo "TG_ARN=$TG_ARN" >> $GITHUB_ENV
 
-    - name: Scan Frontend Image (Non-Blocking)
-      continue-on-error: true
+    - name: Create ECS Service (PR)
       run: |
-        trivy image \
-          --severity HIGH,CRITICAL \
-          ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
+        aws ecs create-service \
+          --cluster ${CLUSTER} \
+          --service-name greenx-pr-${PR_NUMBER} \
+          --task-definition greenx-backend \
+          --desired-count 1 \
+          --load-balancers targetGroupArn=${TG_ARN},containerName=backend,containerPort=${CONTAINER_PORT}
 
-  cd:
-    name: CD - Build, Push & Deploy to ECS
+    - name: Create ALB Path Rule
+      run: |
+        aws elbv2 create-rule \
+          --listener-arn ${{ secrets.LISTENER_ARN }} \
+          --priority $((1000 + PR_NUMBER)) \
+          --conditions Field=path-pattern,Values="/pr-${PR_NUMBER}/*" \
+          --actions Type=forward,TargetGroupArn=${TG_ARN}
+
+    - name: PR Environment URL
+      run: |
+        echo "PR ENV READY:"
+        echo "http://${ALB_DNS}/pr-${PR_NUMBER}"
+
+  pr-cleanup:
+    name: PR → Destroy Environment (EC2)
+    runs-on: self-hosted
+
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+    - name: Configure AWS (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Delete ECS Service
+      run: |
+        aws ecs update-service \
+          --cluster ${CLUSTER} \
+          --service greenx-pr-${PR_NUMBER} \
+          --desired-count 0 || true
+
+        aws ecs delete-service \
+          --cluster ${CLUSTER} \
+          --service greenx-pr-${PR_NUMBER} \
+          --force || true
+
+    - name: Delete Target Group
+      run: |
+        TG_ARN=$(aws elbv2 describe-target-groups \
+          --names tg-pr-${PR_NUMBER} \
+          --query 'TargetGroups[0].TargetGroupArn' \
+          --output text)
+        aws elbv2 delete-target-group --target-group-arn $TG_ARN || true
+
+  deploy-develop:
+    name: Develop → Deploy Shared Environment
     runs-on: self-hosted
     environment: devops-plan
 
     if: github.event_name == 'push'
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Login to GitHub Container Registry
+    - name: Login to GHCR
       run: |
-        echo "${{ secrets.GHCR_TOKEN }}" | \
-        docker login ghcr.io -u zaheerabbas0 --password-stdin
+        echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u zaheerabbas0 --password-stdin
 
-    - name: Build & Push Backend Image
+    - name: Build & Push Images
       run: |
-        docker build \
-          -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} \
-          ./GreenX_DCS_Assesment_Tool_Backend
+        docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
-    - name: Build & Push Frontend Image
-      run: |
-        docker build \
-          -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} \
-          ./greenX-assessment-tool-frontend
+        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
         docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
 
-    - name: Configure AWS credentials (OIDC)
+    - name: Configure AWS (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Deploy to ECS
+    - name: Deploy to ECS (Develop)
       uses: donaldpiret/ecs-deploy@v0.2.0
       with:
         cluster: test-ecs-cluster-new
