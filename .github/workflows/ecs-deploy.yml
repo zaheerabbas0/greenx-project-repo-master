@@ -19,10 +19,12 @@ env:
   CLUSTER: test-ecs-cluster-new
   ALB_DNS: test-devops-alb-1759750993.us-east-1.elb.amazonaws.com
   CONTAINER_PORT: 8000
-
+  TASK_FAMILY: greenx-backend
+  CONTAINER_NAME: backend
+  
 jobs:
   pr-deploy:
-    name: PR → Build & Deploy Environment (EC2)
+    name: PR → Build & Deploy Environment
     runs-on: self-hosted
     environment: devops-plan
 
@@ -45,20 +47,45 @@ jobs:
         docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
 
-    - name: Build & Push Frontend Image
-      run: |
-        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
-
     - name: Configure AWS (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Create Target Group (INSTANCE)
+    - name: Fetch base task definition
       run: |
-        echo "Using VPC: ${{ secrets.VPC_ID }}"
+        aws ecs describe-task-definition \
+          --task-definition ${TASK_FAMILY} \
+          --query taskDefinition > taskdef.json
+
+    - name: Render PR task definition
+      run: |
+        jq '
+          del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy
+          )
+          | .containerDefinitions[0].image="ghcr.io/zaheerabbas0/greenx-backend:'"${IMAGE_TAG}"'"
+        ' taskdef.json > taskdef-pr.json
+
+    - name: Register PR task definition
+      run: |
+        TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://taskdef-pr.json \
+          --query "taskDefinition.taskDefinitionArn" \
+          --output text)
+
+        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+
+    # -------- ALB TARGET GROUP --------
+    - name: Create Target Group (EC2)
+      run: |
         TG_ARN=$(aws elbv2 create-target-group \
           --name tg-pr-${PR_NUMBER} \
           --protocol HTTP \
@@ -68,6 +95,7 @@ jobs:
           --health-check-path /health \
           --query 'TargetGroups[0].TargetGroupArn' \
           --output text)
+
         echo "TG_ARN=$TG_ARN" >> $GITHUB_ENV
 
     - name: Create ECS Service (PR)
@@ -75,9 +103,9 @@ jobs:
         aws ecs create-service \
           --cluster ${CLUSTER} \
           --service-name greenx-pr-${PR_NUMBER} \
-          --task-definition greenx-backend \
+          --task-definition ${TASK_DEF_ARN} \
           --desired-count 1 \
-          --load-balancers targetGroupArn=${TG_ARN},containerName=backend,containerPort=${CONTAINER_PORT}
+          --load-balancers targetGroupArn=${TG_ARN},containerName=${CONTAINER_NAME},containerPort=${CONTAINER_PORT}
 
     - name: Create ALB Path Rule
       run: |
@@ -89,11 +117,11 @@ jobs:
 
     - name: PR Environment URL
       run: |
-        echo "PR ENV READY:"
-        echo "http://${ALB_DNS}/pr-${PR_NUMBER}"
+        echo " PR ENV READY"
+        echo " http://${ALB_DNS}/pr-${PR_NUMBER}"
 
   pr-cleanup:
-    name: PR → Destroy Environment (EC2)
+    name: PR → Destroy Environment
     runs-on: self-hosted
 
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -111,12 +139,12 @@ jobs:
     - name: Delete ECS Service
       run: |
         aws ecs update-service \
-          --cluster ${CLUSTER} \
+          --cluster test-ecs-cluster-new \
           --service greenx-pr-${PR_NUMBER} \
           --desired-count 0 || true
 
         aws ecs delete-service \
-          --cluster ${CLUSTER} \
+          --cluster test-ecs-cluster-new \
           --service greenx-pr-${PR_NUMBER} \
           --force || true
 
@@ -126,6 +154,7 @@ jobs:
           --names tg-pr-${PR_NUMBER} \
           --query 'TargetGroups[0].TargetGroupArn' \
           --output text)
+
         aws elbv2 delete-target-group --target-group-arn $TG_ARN || true
 
   deploy-develop:
@@ -146,13 +175,10 @@ jobs:
       run: |
         echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u zaheerabbas0 --password-stdin
 
-    - name: Build & Push Images
+    - name: Build & Push Backend Image
       run: |
         docker build -t ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG} ./GreenX_DCS_Assesment_Tool_Backend
         docker push ghcr.io/zaheerabbas0/greenx-backend:${IMAGE_TAG}
-
-        docker build -t ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG} ./greenX-assessment-tool-frontend
-        docker push ghcr.io/zaheerabbas0/greenx-frontend:${IMAGE_TAG}
 
     - name: Configure AWS (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
