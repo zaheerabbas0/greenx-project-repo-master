@@ -58,6 +58,7 @@ jobs:
 
     - name: Create Target Group (INSTANCE)
       run: |
+        echo "Using VPC: ${{ secrets.VPC_ID }}"
         TG_ARN=$(aws elbv2 create-target-group \
           --name tg-pr-${PR_NUMBER} \
           --protocol HTTP \
